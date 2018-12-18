@@ -170,6 +170,7 @@ class RandomWordsState extends State<RandomWords> {
     );
   }
 
+  //列表 widget
   Widget _buildSuggestions() {
     return new ListView.builder(
         padding: const EdgeInsets.all(16.0),
@@ -184,7 +185,7 @@ class RandomWordsState extends State<RandomWords> {
           return _buildRow(_suggestions[index]);
         });
   }
-
+// 列表中的row widget
   Widget _buildRow(WordPair pair) {
     // 判断是否存在已选中的集合中
     final bool alreadySaved = _saved.contains(pair);
