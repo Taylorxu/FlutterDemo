@@ -123,6 +123,21 @@ class RandomWordsState extends State<RandomWords> {
   final List<WordPair> _suggestions = <WordPair>[];
   final Set<WordPair> _saved = new Set(); //被选中的
   final TextStyle _biggerFont = const TextStyle(fontSize: 18.0);
+  ScrollController _scrollController = new ScrollController();
+  bool isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _suggestions.addAll(generateWordPairs().take(66)); //初始化列表数据
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels ==
+          _scrollController.position.maxScrollExtent) {
+        //监测滑到底部，就去加载数据
+        _getMoreData();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -133,10 +148,12 @@ class RandomWordsState extends State<RandomWords> {
           IconButton(icon: Icon(Icons.list), onPressed: _pushSaved)
         ],
       ),
-      body: _buildSuggestions(),
+      // body: _buildSuggestions(),
+      body: _refreshIndicator(),
     );
   }
 
+  //进入已选中的 word 列表界面
   void _pushSaved() {
     Navigator.of(context).push(
       new MaterialPageRoute<void>(
@@ -170,7 +187,39 @@ class RandomWordsState extends State<RandomWords> {
     );
   }
 
-  //列表 widget
+
+  //上拉刷的新请求
+  Future<Null> _handleRefresh() async {
+    await Future.delayed(Duration(seconds: 5), () {
+      print('refresh');
+      setState(() {
+        _suggestions.clear();
+        _suggestions.addAll(generateWordPairs().take(40));
+        return null;
+      });
+    });
+  }
+
+  //获取更多数据
+  Future _getMoreData() async {
+    if (!isLoading) {
+      setState(() => isLoading = true);
+      List<WordPair> newEntries =
+          await mokeHttpRequest(_suggestions.length, _suggestions.length + 10);
+      setState(() {
+        _suggestions.addAll(newEntries);
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<List<WordPair>> mokeHttpRequest(int from, int to) async {
+    return Future.delayed(Duration(seconds: 2), () {
+      return List.generate(to - from, (i) => WordPair.random());
+    });
+  }
+
+  //无数新列表 widget
   Widget _buildSuggestions() {
     return new ListView.builder(
         padding: const EdgeInsets.all(16.0),
@@ -185,6 +234,42 @@ class RandomWordsState extends State<RandomWords> {
           return _buildRow(_suggestions[index]);
         });
   }
+
+  //上拉刷新的list列表 RefreshIndicator
+  Widget _refreshIndicator() {
+    return new RefreshIndicator(
+      child: ListView.builder(
+        itemCount: _suggestions.length + 1, //加一个长度给底部加载view
+        padding: const EdgeInsets.all(16.0),
+        itemBuilder: (BuildContext _context, int i) {
+          if (i.isOdd) {
+            return const Divider();
+          }
+          if (i == _suggestions.length) {//如果是最后一条数据，return 底部加载view
+            return _buildLoadText();
+          } else {
+            return _buildRow(_suggestions[i]);
+          }
+        },
+        controller: _scrollController,
+      ),
+      onRefresh: _handleRefresh,
+    );
+  }
+
+  //加载更多 底部条
+  Widget _buildLoadText() {
+    return Container(
+      child: Padding(
+        padding: const EdgeInsets.all(18.0),
+        child: Center(
+          child: Text("加载中……"),
+        ),
+      ),
+      color: Colors.white70,
+    );
+  }
+
 // 列表中的row widget
   Widget _buildRow(WordPair pair) {
     // 判断是否存在已选中的集合中
